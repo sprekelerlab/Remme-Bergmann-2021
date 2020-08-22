@@ -1,0 +1,184 @@
+// set active properties 
+// Michiel Remme, April 2016
+// based on Mainen and Sejnowski 1996 + Schaefer et al 2003
+
+spA         = 2 		// increase in membrane area due to spines
+
+ra          = 150			
+global_ra   = ra
+rm          = 30000
+c_m         = 0.75
+cm_myelin   = 0.04
+g_pas_node  = 0.02
+
+v_init      = -70            
+celsius     = 37 
+Ek          = -90
+Ena         = 60
+
+gna_dend    = 40  
+gna_soma    = 40  
+gna_node    = 30000   
+gna_myelin  = 20 
+
+gkv_dend    = 30   
+gkv_soma    = 30 
+gkv_axon    = 2000 
+
+gca_dist    = 5.5 
+gca_prox    = 4.5 
+gca_basal   = 0 
+gca_soma    = 0 
+
+gkca_dist   = 5.5 
+gkca_prox   = 4.5
+gkca_basal  = 0 
+gkca_soma   = 0  
+
+tauR        = 80
+caiExp      = 6 // 4
+rA          = 0.0005 // 0.05
+rB          = 0.1
+
+        
+// create axon
+n_axon_seg = 5
+create iseg,hill,myelin[n_axon_seg],node[n_axon_seg]
+
+proc create_axon() {local somaArea
+  somaArea=0
+  forsec soma_list for(x,0) somaArea+=area(x)
+  equiv_diam = sqrt(somaArea/(4*PI))
+  iseg {                
+     pt3dclear() pt3dadd(0,0,0,diam) pt3dadd(0,-1000,0,diam) 
+     L = 15
+     nseg = 5
+     diam = equiv_diam/10    
+  }
+  hill {                
+    pt3dclear() pt3dadd(0,0,0,diam) pt3dadd(0,-1000,0,diam) 
+    L = 10
+    nseg = 5
+    diam(0:1) = 4*iseg.diam:iseg.diam
+  }
+  for i=0,n_axon_seg-1 {
+    myelin[i] {         // myelin element
+      pt3dclear() pt3dadd(0,0,0,diam) pt3dadd(0,-1000,0,diam)   
+      nseg = 5
+      L = 100
+      diam = iseg.diam         
+    }
+    node[i] {           // nodes of Ranvier
+      pt3dclear() pt3dadd(0,0,0,diam) pt3dadd(0,-1000,0,diam) 
+      nseg = 1
+      L = 1.0           
+      diam = iseg.diam*.75       // nodes are thinner than axon
+    }
+  }
+  soma connect hill(0), 0.5
+  hill connect iseg(0), 1
+  iseg connect myelin[0](0), 1
+  myelin[0] connect node[0](0), 1
+  for i=0,n_axon_seg-2  { 
+      node[i] connect myelin[i+1](0), 1 
+      myelin[i+1] connect node[i+1](0), 1
+  }
+}
+create_axon()
+
+
+proc set_membrane(){
+    // passive
+    forall {
+        insert pas
+        Ra = ra 
+        cm = c_m 
+        g_pas = 1/rm
+        e_pas = v_init
+    }
+
+    // exceptions along the axon
+    forsec "myelin" cm = cm_myelin
+    forsec "node" g_pas = g_pas_node
+
+    // active
+    // axon
+    forall insert na
+    forsec "myelin" gbar_na = gna_myelin
+    forsec "hill" gbar_na = gna_node
+    forsec "iseg" gbar_na = gna_node
+    forsec "node" gbar_na = gna_node
+    forsec "iseg" { insert kv  gbar_kv = gkv_axon }
+    forsec "hill" { insert kv  gbar_kv = gkv_axon }
+
+    // dendrites
+    forsec dend_list {
+        gbar_na = gna_dend
+        insert kv    gbar_kv  = gkv_dend 
+        insert cad
+    }
+
+    // basal dendrites
+    forsec basal_list { 
+        insert kca   gbar_kca = gkca_basal
+        insert ca    gbar_ca  = gca_basal
+    }
+
+    // proximal apical dendrites
+    forsec apical_prox_list {
+        insert kca   gbar_kca = gkca_prox
+        insert ca    gbar_ca  = gca_prox
+    }
+
+    // distal apical dendrites
+    forsec apical_dist_list {
+        insert kca   gbar_kca = gkca_dist
+        insert ca    gbar_ca  = gca_dist
+    }
+    
+    // distal apical tuft dendrites
+    forsec apical_tuft_list {
+        gbar_na     = 0
+        insert kca   gbar_kca = gkca_prox
+        insert ca    gbar_ca  = gca_prox
+    }
+    forsec dend_list inactF_ca=1
+
+    // soma
+    forsec soma_list {
+        gbar_na = gna_soma
+        insert kv    gbar_kv  = gkv_soma 
+        insert kca   gbar_kca = gkca_soma
+        insert ca    gbar_ca  = gca_soma
+        insert cad
+    }
+
+    forall if(ismembrane("k_ion")) ek = Ek
+    forall if(ismembrane("na_ion")) {
+        ena = Ena 
+        vshift_na = -5
+    }
+    forall if(ismembrane("ca_ion")) {
+        eca = 140
+        ion_style("ca_ion",0,1,0,0,0)
+    }
+
+    // global ca diffusion and kca parameters
+    taur_cad  = tauR 
+    caix_kca  = caiExp
+    Ra_kca    = rA 
+    Rb_kca    = rB 
+
+    // adjust for spines on dendrites
+    forsec dend_list {
+        cm        *=spA 
+        g_pas     *=spA 
+        gbar_na   *=spA 
+        gbar_kv   *=spA 
+        gbar_kca  *=spA 
+        gbar_ca   *=spA 
+    }
+}
+
+set_membrane()
+

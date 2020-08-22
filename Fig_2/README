@@ -1,0 +1,10 @@
+Code for simulating the CA1 neuron model used in figure 2 of the article:
+A circuit mechanism for systems memory consolidation
+Michiel Remme, Urs Bergmann, Susanne Schreiber, Henning Sprekeler, Richard Kempter
+
+To run the code both MATLAB and NEURON need to be installed.
+
+Before running the code, the MOD files in the directory _mod need to be compiled with the application 'mknrndll' that is included with NEURON. This will create the executable 'special' in a subdirectory of _mod. This executable should be copied manually to the same directory as 'neuron_Fig_2.hoc'.
+
+The simulation can be started from Matlab by running the script 'matlab_Fig_2_run.m'.
+For plotting results from a previously run simulation, run the script 'matlab_Fig_2_plot.m'

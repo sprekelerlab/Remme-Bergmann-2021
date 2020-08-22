@@ -1,0 +1,250 @@
+// CA1 pyramidal neuron simulation, Neuron-Matlab interface
+// Michiel Remme, May 2016
+// note the directory naming probably isn't working on windows-machines
+
+{load_file("stdrun.hoc")}
+
+objref cvode
+{cvode = new CVode()
+cvode.active(0)}
+
+{load_file("_lib/n128su.hoc")}
+access soma
+
+/////////	PARAMETERS	/////////
+
+tstop       	= 1500
+celsius     	= 37.0
+v_init      	= -70
+
+{load_file("_lib/set_active_properties.hoc")}
+
+proc set_nseg (){
+    forall nseg = int((L/(0.1*lambda_f(100))+.999)/2)*2 + 1
+    forall { area(0.5) }
+}
+set_nseg()
+
+
+///////// PLACE SYNAPSES /////////
+
+objref synlist_sc, synlist_pp, vslist_sc, vslist_pp, nclist_sc, nclist_pp
+synlist_sc  = new List()
+vslist_sc   = new List()
+nclist_sc   = new List()
+synlist_pp  = new List()
+vslist_pp   = new List()
+nclist_pp   = new List()
+
+objref syn_, vs_, nc_
+
+objref veclist_sc, veclist_pp
+veclist_sc   = new List()
+veclist_pp   = new List()
+objref vec_
+
+
+proc place_syns(){
+	sc_area = 0
+	forsec basal_apical_prox_list for(x,0) sc_area +=area(x)
+    sc_syn_dens = Ne_sc/sc_area
+
+    syn_placed = 0
+    while (syn_placed<Ne_sc) { // while loop in case not all synapses have been placed
+        forsec basal_apical_prox_list for(x,0) {
+            nsyn = int(area(x)*sc_syn_dens+0.5)
+            if (syn_placed+nsyn > Ne_sc) nsyn = Ne_sc-syn_placed // don't place too many syns
+            if (nsyn>0) {
+                stdp_syn_sc(x,nsyn)
+                syn_placed += nsyn
+            }
+        }
+    }
+    print "number of sc synapses placed:",syn_placed
+
+	pp_area = 0
+	forsec apical_dist_list for(x,0) pp_area +=area(x)
+    pp_syn_dens = Ne_pp/pp_area
+
+    syn_placed = 0
+    while (syn_placed<Ne_pp) { // while-loop in case not all synapses have been placed
+        forsec apical_dist_list for(x,0) {
+            nsyn = int(area(x)*pp_syn_dens+0.5)
+            if (syn_placed+nsyn > Ne_pp) nsyn = Ne_pp-syn_placed // don't place too many syns
+            if (nsyn>0) {
+                stdp_syn_pp(x,nsyn)
+                syn_placed += nsyn
+            }
+        }
+    }
+    print "number of pp synapses placed:",syn_placed
+}
+
+proc stdp_syn_sc() {local i
+    syn_ = new ExpSynSTDP($1)  
+    synlist_sc.append(syn_)
+    syn_.e      = 0
+    syn_.tau    = 3
+    syn_.dp     = lambda_sc
+    syn_.dd     = lambda_sc*alpha // fraction, not absolute change!
+    syn_.dtau   = 20
+    syn_.ptau   = 20
+    syn_.wmax   = we_sc_max
+    syn_.wmin   = we_sc_min
+    syn_.thresh = vth_sc
+	for i=0, $2-1{
+		vs_ = new VecStim(.5) 
+        vslist_sc.append(vs_)
+		nc_ = new NetCon(vs_,syn_)
+        nclist_sc.append(nc_)
+        nc_.weight      = 0
+        nc_.delay       = 0
+        vec_ = new Vector()
+        veclist_sc.append(vec_)
+    }
+}
+
+proc stdp_syn_pp() {local i
+    syn_ = new ExpSynSTDP($1)  
+    synlist_pp.append(syn_)
+    syn_.e      = 0
+    syn_.tau    = 3
+    syn_.dp     = lambda_pp
+    syn_.dd     = lambda_pp*alpha // fraction, not absolute change!
+    syn_.dtau   = 20
+    syn_.ptau   = 20
+    syn_.wmax   = we_pp_max
+    syn_.wmin   = we_pp_min
+    syn_.thresh = vth_pp
+	for i=0, $2-1{
+		vs_ = new VecStim(.5) // location of vecstim is not relevant
+        vslist_pp.append(vs_)
+		nc_ = new NetCon(vs_,syn_)
+        nclist_pp.append(nc_)
+        nc_.weight      = 0
+        nc_.delay       = 0
+        vec_ = new Vector()
+        veclist_pp.append(vec_)
+    }
+}
+
+
+///////// LOAD PARAMS FROM FILE /////////
+{load_file("_initialization_files/params.m")}
+
+steps_per_ms    = 1/dt
+setdt()
+
+place_syns()
+
+objref file, we_sc_init, we_pp_init
+file = new File()
+we_sc_init = new Vector()
+we_pp_init = new Vector()
+{file.ropen("_initialization_files/we_sc_init.dat")
+we_sc_init.scanf(file)
+file.ropen("_initialization_files/we_pp_init.dat")
+we_pp_init.scanf(file)
+file.close()}
+
+proc init_weights() {
+	for i=0, nclist_sc.count-1 {
+		nclist_sc.object[i].weight = we_sc_init.x[i]
+        nclist_sc.object[i].delay = del_sc
+	}
+	for i=0, nclist_pp.count-1 {
+		nclist_pp.object[i].weight = we_pp_init.x[i]
+        nclist_pp.object[i].delay = del_pp
+	}
+}
+init_weights()
+
+objref rvp_, save_window_
+proc load_gui(){
+	load_file("nrngui.hoc")
+    xopen("currents.ses")
+}
+
+///////// LOAD INPUT VECTORS /////////
+objref file
+file = new File()
+{file.ropen("_initialization_files/spiketimes_2500_500_5min_sc.dat")
+for i=0,Ne_sc-1 {
+    veclist_sc.object[i].scantil(file,-1.0)
+    vslist_sc.object[i].play(veclist_sc.object[i])
+}}
+{file.ropen("_initialization_files/spiketimes_2500_500_5min_pp.dat")
+for i=0,Ne_pp-1 {
+    veclist_pp.object[i].scantil(file,-1.0)
+    vslist_pp.object[i].play(veclist_pp.object[i])
+}
+file.close()}
+
+
+/////////	RUN   /////////
+objref vrec[2], tvec, wesc_mat, wepp_mat, apc_sc, apc_pp, spikes_vec_sc, spikes_vec_pp
+for i=0,1 {vrec[i] = new Vector()}
+{tvec = new Vector()
+tvec.indgen(rec_start,rec_stop,rec_dt)
+wesc_mat = new Matrix(Ne_sc,1+int(tstop/1000/save_we_ivl))
+wepp_mat = new Matrix(Ne_pp,1+int(tstop/1000/save_we_ivl))
+soma apc_sc = new APCount(0.5)
+dend[92] apc_pp = new APCount(0.5)
+apc_sc.thresh = vth_sc
+apc_pp.thresh = vth_pp
+spikes_vec_sc = new Vector()
+spikes_vec_pp = new Vector()
+apc_sc.record(spikes_vec_sc)
+apc_pp.record(spikes_vec_pp)}
+{
+    soma cvode.record(&v(0.5),vrec[0],tvec,1)
+    dend[92] cvode.record(&v(1),vrec[1],tvec,1)
+}
+
+proc save_weights() {local i
+	for i=0, Ne_sc - 1 {
+		wesc_mat.x[i][mat_ind] = nclist_sc.object[i].weight[3]
+	}
+    for i=0, Ne_pp - 1{
+		wepp_mat.x[i][mat_ind] = nclist_pp.object[i].weight[3]
+    }
+    print t/1000
+    mat_ind += 1
+}
+
+proc init() {
+	finitialize(v_init) // initializes all conductances and currents as well as states.
+    for i=1,int(tstop/1000/save_we_ivl){
+        cvode.event(i*1000*save_we_ivl,"save_weights()")
+    }
+    mat_ind = 0
+    save_weights()
+}
+
+run()
+if (mat_ind < int(tstop/1000/save_we_ivl)) save_weights() // when using cvode, the last save is not always carried out...
+
+/////////   WRITE TO FILE	/////////
+objref mat, file
+mat = new Matrix(tvec.size,3)
+{
+	for i=0,1 {mat.setcol(i,vrec[i])}
+    mat.setcol(2,tvec)
+}
+file = new File()
+{
+    file.wopen("_results/vdata.dat")
+    mat.fprint(0,file,"%-8g\t")
+    file.wopen("_results/wesc_mat.dat")
+    wesc_mat.fprint(0,file,"%-8g\t")
+    file.wopen("_results/wepp_mat.dat")
+    wepp_mat.fprint(0,file,"%-8g\t")
+    file.wopen("_results/spikes_vec_sc.dat")
+    spikes_vec_sc.printf(file,"%10.10g\n")
+    file.wopen("_results/spikes_vec_pp.dat")
+    spikes_vec_pp.printf(file,"%10.10g\n")
+    file.close()
+}
+
+///////////////////////////////////////////
+
