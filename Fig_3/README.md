@@ -21,7 +21,7 @@ cp <arch>/special ..
 Now you should have the `special` binary located in the same folder as
 `neuron_Fig_3.hoc`.
 
-# Run the simulation
+### Run the simulation
 The simulation can be started from Octave or MATLAB by running the script
 `matlab_Fig_3_run.m`. If you are using macOS, you will have to change the
 command to run NEURON in line 95.
