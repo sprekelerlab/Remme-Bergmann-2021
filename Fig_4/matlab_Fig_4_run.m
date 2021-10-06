@@ -11,9 +11,7 @@ clear all
 % on mac
 % mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
 % on linux machines need to add lgslcblas
-% mex -lgsl -lgslcblas -lm integrate_eqns.c
-
-% octave: mkoctfile --mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
+mex -lgsl -lgslcblas -lm integrate_eqns.c
 
 %% Parameters
 PP_lesion   = 0; % 0 = no lesion // 1 = lesion before training // 2 = lesion after 21 cycles
@@ -54,12 +52,14 @@ N_mem           = 125;
 N_init_cycles   = 0; % number of consolidation cycles to initialize WPP matrices
 
 dir_res  = '_results/';
+mkdir(dir_res)
 
 %% run batch
 for i_trial = 1:N_trial
     i_trial
     seed = seed_range(i_trial);
-    rng(seed); % in matlab / in octave use: rand('state', seed);
+    #rng(seed); % in matlab
+    rand('state', seed); % in octave
 
     %%% SET CA3 PLACE FIELD PARAMETERS AND OBJECT CODING ACTIVITIES
     pos_vec     = -env_len/2+env_len*(0.5:1:sqrt(N))./sqrt(N);
@@ -124,10 +124,10 @@ for i_trial = 1:N_trial
 %   W_PPS_po_init   = W_PPS_max*W_PPS_init_scale*rand(N,N);
 %   W_PPS_pp_init   = W_PPS_max*W_PPS_init_scale*rand(N,N);
     load W_PP_W_PPS_init % load weight matrices to avoid initialization artefacts (otherwise use previous 4 lines instead)
-    W_PP_po_init(:) = W_PP_po_end(randperm(N*N));
-    W_PP_pp_init(:) = W_PP_pp_end(randperm(N*N));
-    W_PPS_po_init(:)= W_PPS_po_end(randperm(N*N));
-    W_PPS_pp_init(:)= W_PPS_pp_end(randperm(N*N));
+    W_PP_po_init    = W_PP_po_end(randperm(N*N));
+    W_PP_pp_init    = W_PP_pp_end(randperm(N*N));
+    W_PPS_po_init   = W_PPS_po_end(randperm(N*N));
+    W_PPS_pp_init   = W_PPS_pp_end(randperm(N*N));
 
     if PP_lesion==1
         disp 'Lesion before training'

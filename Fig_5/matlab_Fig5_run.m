@@ -11,9 +11,7 @@ clear all
 % on mac
 % mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
 % on linux machines need to add lgslcblas
-% mex -lgsl -lgslcblas -lm integrate_eqns.c
-
-% octave: mkoctfile --mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
+mex -lgsl -lgslcblas -lm integrate_eqns.c
 
 %% Parameters
 
@@ -44,8 +42,11 @@ HPC_mem_fac = 0.5;  % relative contribution of new memories
 %% %%%%%%%%%%%%%%%%%%%%%%%%%
 % run batch
 
+mkdir('_results')
+
 seed    = seed_init;
-rng(seed);
+#rng(seed); % in matlab
+rand('state', seed); % in octave
 
 %%% INITIALIZE HPC MATRIX
 W_HPC_init = binornd(1,0.5,N_cell,N_cell);

@@ -37,6 +37,9 @@ dir_init = '_initialization_files';
 dir_lib  = '_lib';
 dir_res  = '_results/';
 
+mkdir(dir_init)
+mkdir(dir_res)
+
 % Generate parameters file for Neuron
 fid = fopen(fullfile(dir_init,'params.m'), 'wt');
 fprintf(fid,'tstop = %g\n',tstop);
@@ -92,7 +95,7 @@ fclose(fid);
 %% 4) run Neuron
 
 system('./special -nobanner -nogui neuron_Fig_3.hoc'); % for mac
-% system('LD_LIBRARY_PATH="" ./special -nobanner -nogui neuron_ca1_consolidation.hoc'); % for LINUX
+% system('LD_LIBRARY_PATH="" ./special -nobanner -nogui neuron_Fig_3.hoc'); % for LINUX
 
 %% 5) plot data
 

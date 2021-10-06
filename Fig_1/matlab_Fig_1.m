@@ -8,11 +8,9 @@ clear all
 
 % compile the c-code
 % on mac
-mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
+%mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
 % on linux machines need to add lgslcblas
-% mex -lgsl -lgslcblas -lm integrate_eqns.c
-
-% octave: mkoctfile --mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
+mex -lgsl -lgslcblas -lm integrate_eqns.c
 
 %% Parameters
 
@@ -94,4 +92,8 @@ set(gca,'xtick',[0:200:Ne])
 set(gca,'ytick',[0:0.2:1])
 axis([0 Ne 0 1])
 
-% pause()
+if pp_plastic
+    saveas(gcf, 'figure-1-E.png');
+else
+    saveas(gcf, 'figure-1-F.png');
+end
