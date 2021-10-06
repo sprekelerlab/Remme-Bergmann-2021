@@ -1,7 +1,7 @@
-% Memory consolidation - Figure 4
+% Memory consolidation - Figure 5
 % Michiel Remme, May 2016
 % memory consolidation in a hierarchical network
-% analyze and plot data after running simulation with matlab_Fig_4_run.m
+% analyze and plot data after running simulation with matlab_Fig_5_run.m
 
 clear all
 clf
@@ -20,7 +20,7 @@ corr_mref_all   = zeros(N_cycle,N_layer+1); % includes the HPC
 
 ind = 1;
 for cycle_i = cycle_start+(0:N_cycle-1)
-    file    = sprintf('_results/data_Fig4_seed_%d_Nlayer_%d_cycle_%d',seed_init,N_layer,cycle_i);
+    file    = sprintf('_results/data_Fig5_seed_%d_Nlayer_%d_cycle_%d',seed_init,N_layer,cycle_i);
     if cycle_i==cycle_start
         load(file,'A_','W_HPC_mem','W_HPC_init','W_')
         M_ref       = W_HPC_mem; % this is the reference memory that will be tracked
@@ -47,4 +47,4 @@ ylabel('Correlations')
 set(gca,'XTick',[1 10 100 1000],'XTickLabel',[1;10;100;1000])
 set(gca,'YTick',[0.001 0.01 0.1 1],'YTickLabel',[0.001;0.01;0.1;1])
 
-
+saveas(gcf, 'figure5.png')

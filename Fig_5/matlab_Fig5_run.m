@@ -1,7 +1,7 @@
-% Memory consolidation - Figure 4
+% Memory consolidation - Figure 5
 % Michiel Remme, May 2016
 % memory consolidation in a hierarchical network
-% for analyzing and plotting data after running this simulation, use matlab_Fig_4_plot.m
+% for analyzing and plotting data after running this simulation, use matlab_Fig_5_plot.m
 
 clear all
 
@@ -9,7 +9,7 @@ clear all
 
 % compile the c-code
 % on mac
-mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
+% mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
 % on linux machines need to add lgslcblas
 % mex -lgsl -lgslcblas -lm integrate_eqns.c
 
@@ -59,7 +59,7 @@ end
 
 W_init = w_max*rand(N_cell,N_cell,N_layer);
 
-file = sprintf('_results/data_Fig4_seed_%d_Nlayer_%d_cycle_0',seed_init,N_layer);
+file = sprintf('_results/data_Fig5_seed_%d_Nlayer_%d_cycle_0',seed_init,N_layer);
 save(file); % save all parameters in this file - W_HPC_mem is the memory that will be tracked and that has not yet been learned
 
 %%% RUN CONSOLIDATION CYCLES
@@ -70,7 +70,7 @@ for i_cycle = 1:N_cycle
     params  = [nsec dt N_layer N_cell A_mean A_std it_del w_max lambda lambda_q alpha tau_LTP tau_LTD seed];
     [W_,A_]         = integrate_eqns(W_HPC_init,W_init,params);
     % save weight matrices
-    file = sprintf('_results/data_Fig4_seed_%d_Nlayer_%d_cycle_%d',seed_init,N_layer,i_cycle);
+    file = sprintf('_results/data_Fig5_seed_%d_Nlayer_%d_cycle_%d',seed_init,N_layer,i_cycle);
     save(file,'W_HPC_mem','W_HPC_init','W_','A_');
     % weight matrices update
     W_HPC_mem       = binornd(1,0.5,N_cell,N_cell);

@@ -4,7 +4,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
 
 int* Make1DIntArray(int arraySizeX) {
     int* theArray;
@@ -34,23 +33,7 @@ double** Make2DDoubleArray(int arraySizeX, int arraySizeY) {
     return theArray;
 }
 
-double*** Make3DDoubleArray(int arraySizeX, int arraySizeY, int arraySizeZ) {
-    double*** theArray;
-    int i, j;
-    theArray = (double***) mxCalloc(arraySizeX,sizeof(double**));
-    if (theArray == NULL) mexErrMsgTxt("Can not allocate temporary variables\n");
-    for (i = 0; i < arraySizeX; i++) {
-        theArray[i] = (double**) mxCalloc(arraySizeY,sizeof(double*));
-        if (theArray[i] == NULL) mexErrMsgTxt("Can not allocate temporary variables\n");
-        for (j = 0; j < arraySizeY; j++) {
-            theArray[i][j] = (double*) mxCalloc(arraySizeZ,sizeof(double));
-            if (theArray[i][j] == NULL) mexErrMsgTxt("Can not allocate temporary variables\n");
-        }
-    }
-    return theArray;
-}
-
-gsl_rng * Rng;
+gsl_rng *Rng;
 const gsl_rng_type * Rng_T;
 
 double uniform() {
@@ -61,196 +44,231 @@ unsigned long int uniform_int(unsigned long int n) {
     return gsl_rng_uniform_int(Rng,n);
 }
 
-double gaussian(double sigma) {
-    return gsl_ran_gaussian(Rng,sigma);
-}
-
 void mexFunction(int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[]) {
-    double  *W_HPC_init, *W_init, *params;
-    int     nsec, N_layer, N_cell, it_del, seed;
-    double  dt, A_mean, A_std, w_max, lambda,lambda_q, alpha, tau_LTP, tau_LTD;
 
-    if (nrhs != 3) mexErrMsgTxt("Error in number of input arguments!\n");
-    if (nlhs != 2) mexErrMsgTxt("Error in number of output variables!\n");
+    double  *W_SC_po_init, *W_PP_po_init, *W_PP_pp_init, *W_PPS_po_init, *W_PPS_pp_init, *params, *CA3_p_pf, *CA3_o_A, *EC_p_gf, *EC_o_A;
+    int     nsec, N, seed, N_obj, it_del_CA3, it_del_CA1;
+    double  dt, W_PP_max, W_PPS_max, W_SC_id, W_SCS_id, lambda_PP,lambda_PPS, alpha, tau_LTP, tau_LTD, env_len, CA3_pf_var, A_EC_max, A_CA3_max;
 
-    W_HPC_init      = mxGetPr(prhs[0]);
-    W_init          = mxGetPr(prhs[1]);
-    params          = mxGetPr(prhs[2]);
+    if (nrhs != 10) mexErrMsgTxt("Error in number of input arguments!\n");
+    if (nlhs != 4) mexErrMsgTxt("Error in number of output variables!\n");
+
+    W_SC_po_init    = mxGetPr(prhs[0]);
+    W_PP_po_init    = mxGetPr(prhs[1]);
+    W_PP_pp_init    = mxGetPr(prhs[2]);
+    W_PPS_po_init   = mxGetPr(prhs[3]);
+    W_PPS_pp_init   = mxGetPr(prhs[4]);
+    params          = mxGetPr(prhs[5]);
+    CA3_p_pf        = mxGetPr(prhs[6]);
+    CA3_o_A         = mxGetPr(prhs[7]);
+    EC_p_gf         = mxGetPr(prhs[8]);
+    EC_o_A          = mxGetPr(prhs[9]);
     nsec            = (int) params[0];
     dt              = params[1];
-    N_layer         = (int) params[2];
-    N_cell          = (int) params[3];
-    A_mean          = params[4];
-    A_std           = params[5];
-    it_del          = (int) params[6];
-    w_max           = params[7];
-    lambda          = params[8];
-    lambda_q        = params[9];
-    alpha           = params[10];
-    tau_LTP         = params[11];
-    tau_LTD         = params[12];
-    seed            = (long) params[13];
+    N               = (int) params[2];
+    W_PP_max        = params[3];
+    W_PPS_max       = params[4];
+    W_SC_id         = params[5];
+    W_SCS_id        = params[6];
+    it_del_CA3      = (int) params[7];
+    it_del_CA1      = (int) params[8];
+    lambda_PP       = params[9];
+    lambda_PPS      = params[10];
+    alpha           = params[11];
+    tau_LTP         = params[12];
+    tau_LTD         = params[13];
+    env_len         = params[14];
+    CA3_pf_var      = params[15];
+    A_EC_max        = params[16];
+    A_CA3_max       = params[17];
+    N_obj           = params[18];
+    seed            = (long) params[19];
 
     gsl_rng_env_setup();
-    Rng_T   = gsl_rng_default;
-    Rng     = gsl_rng_alloc(Rng_T);
-    gsl_rng_set(Rng, seed);
+    Rng_T = gsl_rng_default;
+    Rng = gsl_rng_alloc(Rng_T);
+    gsl_rng_set (Rng, seed);
 
-    double**    A_in    = Make2DDoubleArray(N_cell,N_layer);
-    double**    A_out   = Make2DDoubleArray(N_cell,N_layer);
-    double*     A_HPC   = Make1DDoubleArray(N_cell);                    /* activity of HPC cells through W_HPC matrix */
-    double**    W_HPC   = Make2DDoubleArray(N_cell,N_cell);             /* weight matrix from input layer 0 to HPC */
-    double***   W       = Make3DDoubleArray(N_cell,N_cell,N_layer);
+    double*  A_EC_p  = Make1DDoubleArray(N);
+    double*  A_EC_o  = Make1DDoubleArray(N);
+    double*  A_CA3_p = Make1DDoubleArray(N);
+    double*  A_CA3_o = Make1DDoubleArray(N);
+    double*  A_CA1_p = Make1DDoubleArray(N);
+    double*  A_SUB_p = Make1DDoubleArray(N);
 
-    double***   A_in_hist  = Make3DDoubleArray(N_cell,N_layer,it_del);  /* history of all input layer cells */
-    double***   A_out_hist = Make3DDoubleArray(N_cell,N_layer,it_del);  /* history of all output layer cells */
-    double**    A_HPC_hist = Make2DDoubleArray(N_cell,it_del);          /* history of HPC cells */
+    double** W_PP_pp = Make2DDoubleArray(N, N);
+    double** W_PP_po = Make2DDoubleArray(N, N);
+    double** W_SC_po = Make2DDoubleArray(N, N);
+    double** W_PPS_pp = Make2DDoubleArray(N, N);
+    double** W_PPS_po = Make2DDoubleArray(N, N);
 
-    double*     d_LTP   = Make1DDoubleArray(N_layer);
-    double*     d_LTD   = Make1DDoubleArray(N_layer);
+    double** del_CA3_p = Make2DDoubleArray(it_del_CA3, 2);
+    int*     del_CA3_o = Make1DIntArray(it_del_CA3);
+    double** del_CA1_p = Make2DDoubleArray(it_del_CA1, N);
 
-    int         Nind    = 1/dt;
+    double  d_LTP_PP    = lambda_PP;
+    double  d_LTD_PP    = alpha*lambda_PP;
+    double  d_LTP_PPS   = lambda_PPS;
+    double  d_LTD_PPS   = alpha*lambda_PPS;
 
-    mwSignedIndex dims[3];
-    dims[0] = N_cell;
-    dims[1] = N_cell;
-    dims[2] = N_layer;
-    plhs[0] = mxCreateNumericArray(3,dims,mxDOUBLE_CLASS,mxREAL);
-    plhs[1] = mxCreateDoubleMatrix(N_cell, N_layer+2, mxREAL);
+    int     Nind        = 1/dt;
 
-    double      *W_save, *A_save;
-    W_save      = mxGetPr(plhs[0]);
-    A_save      = mxGetPr(plhs[1]);
+    plhs[0] = mxCreateDoubleMatrix(N, N, mxREAL);
+    plhs[1] = mxCreateDoubleMatrix(N, N, mxREAL);
+    plhs[2] = mxCreateDoubleMatrix(N, N, mxREAL);
+    plhs[3] = mxCreateDoubleMatrix(N, N, mxREAL);
+
+    double  *W_PP_po_save, *W_PPS_po_save, *W_PP_pp_save, *W_PPS_pp_save;
+    W_PP_po_save    = mxGetPr(plhs[0]);
+    W_PPS_po_save   = mxGetPr(plhs[1]);
+    W_PP_pp_save    = mxGetPr(plhs[2]);
+    W_PPS_pp_save   = mxGetPr(plhs[3]);
 
     /* INITIALIZE */
     int i = 0;
     int j = 0;
-    int k = 0;
-    int hist_store_ind = 0;
-    int hist_use_ind = 0;
-
-    /* initialize learning rates */
-    for (k=0;k<N_layer;k++) {               /* Note numbering: Layer 1 is the fastest */
-        d_LTP[k] = lambda*pow(lambda_q,k);
-        /*d_LTP[k] = lambda;*/
-        d_LTD[k] = alpha*d_LTP[k];
-    }
 
     /* initialize weight matrices */
-    for (i=0;i<N_cell;i++) {
-        for (j=0;j<N_cell;j++) {
-            W_HPC[i][j] = W_HPC_init[j+N_cell*i];
-        }
-    }
-    for (k=0;k<N_layer;k++) {
-        for (i=0;i<N_cell;i++) {
-            for (j=0;j<N_cell;j++) {
-                W[i][j][k] = W_init[j+N_cell*i+k*N_cell*N_cell];
-            }
+    for (i=0;i<N;i++) {
+        for (j=0;j<N;j++) {
+            W_SC_po[j][i] = W_SC_po_init[j+N*i];
+            W_PP_pp[j][i] = W_PP_pp_init[j+N*i];
+            W_PP_po[j][i] = W_PP_po_init[j+N*i];
+            W_PPS_pp[j][i] = W_PPS_pp_init[j+N*i];
+            W_PPS_po[j][i] = W_PPS_po_init[j+N*i];
         }
     }
 
-    double** LTP_A = Make2DDoubleArray(N_cell,N_layer);  /* low pass filtered activities of input layer cells */
-    double** LTD_A = Make2DDoubleArray(N_cell,N_layer);  /* low pass filtered activities of output layer cells */
+    double* LTD_PP_p    = Make1DDoubleArray(N);
+    double* LTP_PP_p    = Make1DDoubleArray(N);
+    double* LTP_PP_o    = Make1DDoubleArray(N);
+    double* LTD_PPS_p   = Make1DDoubleArray(N);
 
-    int     sec     = 0;
-    int     ind     = 0;
+    double LTP_ud   = exp(-dt/tau_LTP);
+    double LTD_ud   = exp(-dt/tau_LTD);
+
+    int sec     = 0;
+    int ind     = 0;
+
+    double phi  = 0;
+    double r    = 0;
+    double xp   = 0;
+    double yp   = 0;
+    double xp_del = 0;
+    double yp_del = 0;
+    int o_ind     = 0;
+    int o_ind_del = 0;
+
+
+    /* store initial W_PP_po + W_PPS_po matrices */
+    for (i=0;i<N;i++) {
+        for (j=0;j<N;j++) {
+            W_PP_po_save[j+i*N+0]  = W_PP_po[j][i];
+            W_PPS_po_save[j+i*N+0] = W_PPS_po[j][i];
+        }
+    }
 
     /* SECONDS LOOP */
     for (sec=1;sec<=nsec;sec++) {
-        /*mexPrintf("%d\n",sec);*/
 
         /* DT LOOP */
         for (ind=0;ind<Nind;ind++) {
-            hist_store_ind = ind%it_del;
-            hist_use_ind   = (ind+1)%it_del;
 
-            /* activity of 'sensory' input layer */
-            k = N_layer - 1;
-            for (i=0;i<N_cell;i++) {
-                A_in[i][k] = A_mean + gaussian(A_std);
-                if (A_in[i][k]<0) A_in[i][k] = 0;
-                A_in_hist[i][k][hist_store_ind] = A_in[i][k]; /* store A_in activity */
+            /* generate position on circle */
+            phi = 2*M_PI*uniform();
+            r   = uniform() + uniform();    // TODO: why not the same formula as in matlab code? (sqrt(uniform)...)
+            if (r>1) r = 2-r;
+            xp  = env_len/2*r*cos(phi);
+            yp  = env_len/2*r*sin(phi);
+            del_CA3_p[ind%it_del_CA3][0] = xp;
+            del_CA3_p[ind%it_del_CA3][1] = yp;
+            xp_del = del_CA3_p[(ind+1)%it_del_CA3][0];
+            yp_del = del_CA3_p[(ind+1)%it_del_CA3][1];
+
+            /* generate object */
+            o_ind = uniform_int(N_obj);
+            del_CA3_o[ind%it_del_CA3] = o_ind;
+            o_ind_del = del_CA3_o[(ind+1)%it_del_CA3];
+
+            /* activity of EC cells */
+            for (i=0;i<N;i++) {
+                A_EC_p[i] = 0;
+                A_EC_p[i] =  cos((cos(           EC_p_gf[i+2*N])*(xp-EC_p_gf[i])
+                                + sin(           EC_p_gf[i+2*N])*(yp-EC_p_gf[i+N]))*EC_p_gf[i+3*N]);
+                A_EC_p[i] += cos((cos(M_PI/3+    EC_p_gf[i+2*N])*(xp-EC_p_gf[i])
+                                + sin(M_PI/3+    EC_p_gf[i+2*N])*(yp-EC_p_gf[i+N]))*EC_p_gf[i+3*N]);
+                A_EC_p[i] += cos((cos(2*M_PI/3+  EC_p_gf[i+2*N])*(xp-EC_p_gf[i])
+                                + sin(2*M_PI/3+  EC_p_gf[i+2*N])*(yp-EC_p_gf[i+N]))*EC_p_gf[i+3*N]);
+                A_EC_p[i] = A_EC_max*(A_EC_p[i]+1.5)/4.5;
+
+                A_EC_o[i] = EC_o_A[i+N*o_ind];
             }
 
-            /* activities of subsequent input layers (from periphery to HPC) */
-            for (k=N_layer-2;k>=0;k--) {
-                for (i=0;i<N_cell;i++) {
-                    A_in[i][k] = A_in_hist[i][k+1][hist_use_ind]; /* set activity using previous act in previous layer */
-                    A_in_hist[i][k][hist_store_ind] = A_in[i][k]; /* store A_in activity */
+            /* activity of CA3 cells */
+            for (i=0;i<N;i++) {
+                A_CA3_p[i] = A_CA3_max*exp(-((xp_del-CA3_p_pf[i])*(xp_del-CA3_p_pf[i])+(yp_del-CA3_p_pf[i+N])*(yp_del-CA3_p_pf[i+N]))/(2*CA3_pf_var));
+                A_CA3_o[i] = CA3_o_A[i+N*o_ind_del];
+            }
+
+            /* activity of CA1 cells */
+            for (i=0;i<N;i++) {
+                A_CA1_p[i] = 0;
+                for (j=0;j<N;j++) {
+                    A_CA1_p[i] += W_PP_pp[i][j]*A_EC_p[j];
+                    A_CA1_p[i] += W_PP_po[i][j]*A_EC_o[j];
+                    A_CA1_p[i] += W_SC_po[i][j]*A_CA3_o[j];
                 }
+                A_CA1_p[i] += W_SC_id*A_CA3_p[i]; /* identity */
             }
 
-            /* activity of HPC cells */
-            for (i=0;i<N_cell;i++) {
-                A_HPC[i] = 0;
-                for (j=0;j<N_cell;j++) {
-                    A_HPC[i] += W_HPC[i][j]*A_in_hist[j][0][hist_use_ind];  /* from input layer closest to HPC, 1 delay ago */
+            /* store CA1_p activity to implement delay to SUB */
+            for (i=0;i<N;i++) del_CA1_p[ind%it_del_CA1][i] = A_CA1_p[i];
+
+            /* activity of SUB cells */
+            for (i=0;i<N;i++) {
+                A_SUB_p[i] = 0;
+                for (j=0;j<N;j++) {
+                    A_SUB_p[i] += W_PPS_pp[i][j]*A_EC_p[j];
+                    A_SUB_p[i] += W_PPS_po[i][j]*A_EC_o[j];
                 }
-                A_HPC_hist[i][hist_store_ind] = A_HPC[i]; /* store A_HPC activity */
+                A_SUB_p[i] += W_SCS_id*del_CA1_p[(ind+1)%it_del_CA1][i]; /* identity using delayed CA1 activity */
             }
 
-            /* activities of first output layer (closest to HPC) */
-            k = 0;
-            for (i=0;i<N_cell;i++) {
-                A_out[i][k] = 0;
-                for (j=0;j<N_cell;j++) {
-                    A_out[i][k] += 0.5*W[i][j][k]*A_in_hist[j][k][hist_use_ind]; /* the k=0 is input layer 1 (the closest to HPC) */
+            /* STDP of PP fibers */
+            for (i=0;i<N;i++) {
+                LTP_PP_p[i] += dt*(A_EC_p[i] - LTP_PP_p[i])/tau_LTP;
+                LTP_PP_o[i] += dt*(A_EC_o[i] - LTP_PP_o[i])/tau_LTP;
+            }
+            for (i=0;i<N;i++) {
+                LTD_PP_p[i] += dt*(A_CA1_p[i] - LTD_PP_p[i])/tau_LTD;
+                LTD_PPS_p[i]+= dt*(A_SUB_p[i] - LTD_PPS_p[i])/tau_LTD;
+            }
+
+            for (i=0;i<N;i++) {
+                for (j=0;j<N;j++) {
+                    W_PP_pp[j][i] += dt*(A_CA1_p[j]*LTP_PP_p[i]*d_LTP_PP - LTD_PP_p[j]*A_EC_p[i]*d_LTD_PP);
+                    W_PP_po[j][i] += dt*(A_CA1_p[j]*LTP_PP_o[i]*d_LTP_PP - LTD_PP_p[j]*A_EC_o[i]*d_LTD_PP);
+                    if (W_PP_pp[j][i]>W_PP_max) W_PP_pp[j][i] = W_PP_max;
+                    if (W_PP_po[j][i]>W_PP_max) W_PP_po[j][i] = W_PP_max;
+                    if (W_PP_pp[j][i]<0) W_PP_pp[j][i] = 0;
+                    if (W_PP_po[j][i]<0) W_PP_po[j][i] = 0;
+                    W_PPS_pp[j][i] += dt*(A_SUB_p[j]*LTP_PP_p[i]*d_LTP_PPS - LTD_PPS_p[j]*A_EC_p[i]*d_LTD_PPS);
+                    W_PPS_po[j][i] += dt*(A_SUB_p[j]*LTP_PP_o[i]*d_LTP_PPS - LTD_PPS_p[j]*A_EC_o[i]*d_LTD_PPS);
+                    if (W_PPS_pp[j][i]>W_PPS_max) W_PPS_pp[j][i] = W_PPS_max;
+                    if (W_PPS_po[j][i]>W_PPS_max) W_PPS_po[j][i] = W_PPS_max;
+                    if (W_PPS_pp[j][i]<0) W_PPS_pp[j][i] = 0;
+                    if (W_PPS_po[j][i]<0) W_PPS_po[j][i] = 0;
                 }
-                A_out[i][k]     += 0.5*A_HPC_hist[i][hist_use_ind]; /* identity input of delayed HPC activity */
-                A_out_hist[i][k][hist_store_ind] = A_out[i][k]; /* store A_out activity */
-            }
-
-            /* activities of subsequent output layers (from HPC to periphery) */
-            for (k=1;k<N_layer;k++) {   /* layer 0 is already set above */
-                for (i=0;i<N_cell;i++) {
-                    A_out[i][k] = 0;
-                    for (j=0;j<N_cell;j++) {
-                        A_out[i][k] += 0.5*W[i][j][k]*A_in_hist[j][k][hist_use_ind]; /* note that input layers are counted from the HPC */
-                    }
-                    A_out[i][k]     += 0.5*A_out_hist[i][k-1][hist_use_ind]; /* identity using delayed previous output layer activities */
-                    A_out_hist[i][k][hist_store_ind] = A_out[i][k]; /* store A_out activity */
-                }
-            }
-
-            /* STDP of shortcut fibers */
-            for (k=0;k<N_layer;k++) {
-                for (i=0;i<N_cell;i++) {
-                    LTP_A[i][k] += dt*(A_in_hist[i][k][hist_use_ind] - LTP_A[i][k])/tau_LTP; /* this should represent low pass filtered activity at the synapse terminal, hence uses the propagated activity*/
-                    LTD_A[i][k] += dt*(A_out[i][k] - LTD_A[i][k])/tau_LTD; /* this is low pass filtered activity at the post-synaptic site, and hence uses current activity */
-                }
-            }
-            for (k=0;k<N_layer;k++) {
-                for (i=0;i<N_cell;i++) {
-                    for (j=0;j<N_cell;j++) {
-                        W[i][j][k] += dt*( A_out[i][k]*LTP_A[j][k]*d_LTP[k] - LTD_A[i][k]*A_in_hist[j][k][hist_use_ind]*d_LTD[k] );
-                        if (W[i][j][k]>w_max) W[i][j][k] = w_max;
-                        if (W[i][j][k]<0) W[i][j][k] = 0;
-                    }
-                }
-            }
-
-        } /* end of DT loop */
-    } /* end of sec loop */
-
-    /* save shortcut weight matrices */
-    for (k=0;k<N_layer;k++) {
-        for (i=0;i<N_cell;i++) {
-            for (j=0;j<N_cell;j++) {
-                W_save[j+i*N_cell+k*N_cell*N_cell]  = W[i][j][k];
             }
         }
     }
-    /* save layer activities from final iteration */
-    for (i=0;i<N_cell;i++) {
-        A_save[i]= A_in[i][0];
-    }
-    for (i=0;i<N_cell;i++) {
-        A_save[i+N_cell] = A_HPC[i];
-    }
-    for (k=0;k<N_layer;k++) {
-        for (i=0;i<N_cell;i++) {
-            A_save[i+(k+2)*N_cell] = A_out[i][k];
+    /* store weight matrices */
+    for (i=0;i<N;i++) {
+        for (j=0;j<N;j++) {
+            W_PP_po_save[j+i*N]  = W_PP_po[j][i];
+            W_PPS_po_save[j+i*N] = W_PPS_po[j][i];
+            W_PP_pp_save[j+i*N]  = W_PP_pp[j][i];
+            W_PPS_pp_save[j+i*N] = W_PPS_pp[j][i];
         }
     }
 }
