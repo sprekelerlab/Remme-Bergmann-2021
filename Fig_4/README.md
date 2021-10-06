@@ -1,5 +1,5 @@
 ## Running simulations in Fig. 4
-The simulation can be started from MATLAB by running the script
+The simulation can be started from Octave or MATLAB by running the script
 `matlab_Fig_4_run.m`.
 
 If you are using macOS, you might have to change the command to compile the

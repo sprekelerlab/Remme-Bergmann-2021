@@ -14,4 +14,5 @@ To run the code in this repository, you need to install the following software:
 
 The code was tested on macOS and Linux. Depending on whether MATLAB or Octave
 is used and whether macOS or Linux is used, some files have to be modified as
-described in the separate `Fig` folders. 
+described in the separate `Fig` folders. All code was last run with Octave
+6.3.0, GSL 2.7 and NEURON 7.8.1.
