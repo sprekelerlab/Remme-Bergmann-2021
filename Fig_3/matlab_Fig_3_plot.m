@@ -59,10 +59,10 @@ for trial_i = 1:Ntrial
     fprintf('Trial No. %d\n',trial_i);
     file_i = seed_range(trial_i);
     for cycle_i = 0:Ncycle
-        file    = sprintf('_results/data_nsec_%d_seed_%d_cycle_%d',nsec,file_i,cycle_i);            
+        file    = sprintf('_results/data_nsec_%d_seed_%d_cycle_%d',nsec,file_i,cycle_i);
         if cycle_i == 0
             % store CA1 and SUB activity patterns for different input locations at onset (= same for all cycles)
-            load(file,'N','CA3_o_A','CA3_p_pf','CA3_pf_var','A_CA3_max','EC_o_A','EC_p_gf','A_EC_max','W_SC_po_init','W_PP_po_init','W_PPS_po_init');    
+            load(file,'N','CA3_o_A','CA3_p_pf','CA3_pf_var','A_CA3_max','EC_o_A','EC_p_gf','A_EC_max','W_SC_po_init','W_PP_po_init','W_PPS_po_init');
             % CA1_p activity through CA3_p identity input for locations on grid
             A_CA1_p_CA3_p   = zeros(N,n_grid_points);
             for i = 1:n_grid_points
@@ -72,23 +72,24 @@ for trial_i = 1:Ntrial
             end
             % SUB_p activity through CA3_p -> CA1_p identity input for locations on grid
             A_SUB_p_CA3_p   = A_CA1_p_CA3_p;
-            A_CA3_o     	= CA3_o_A(:,o_ind);         % CA3_o activity for stored object
+            A_CA3_o         = CA3_o_A(:,o_ind);         % CA3_o activity for stored object
             A_EC_o          = EC_o_A(:,o_ind);          % EC_o activity for stored object
-            W_PP_po         = W_PP_po_init;
-            W_PPS_po        = W_PPS_po_init;
-        else        
+            num_neurons     = size(A_EC_o, 1);
+            W_PP_po         = reshape(W_PP_po_init, [num_neurons, num_neurons]);
+            W_PPS_po        = reshape(W_PPS_po_init, [num_neurons, num_neurons]);
+        else
             load(file,'W_SC_po_init','W_PP_po_end','W_PPS_po_end');
             W_PP_po     = W_PP_po_end;
             W_PPS_po    = W_PPS_po_end;
         end
-        
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%% ANALYZE W_SC MATRIX
-        
+
         A_CA1_p_CA3_o   = W_SC_po_init*A_CA3_o;              % CA1_p activity through CA3_o input
         A_CA1_p_CA3_o   = A_CA1_p_CA3_o-mean(A_CA1_p_CA3_o); % subtract mean activity
         A_CA1_p_CA3_o   = A_CA1_p_CA3_o./std(A_CA1_p_CA3_o); % normalize by std activity
-        
+
         P_SC_po         = zeros(n_grid_points,1); % probability of object at position p
         for j = 1:n_grid_points
             P_SC_po(j)  = exp(-( sum((A_CA1_p_CA3_p(:,j) - A_CA1_p_CA3_o).^2)/N )./(2*P_SC_var));
@@ -101,14 +102,14 @@ for trial_i = 1:Ntrial
         P_SC_quad       = P_SC_quad./sum(P_SC_quad); % because some probs are outside circle
         P_SC_quad_cycle(:,cycle_i+1,trial_i) = P_SC_quad;
         P_SC_prob_cycle(:,:,cycle_i+1,trial_i) = reshape(P_SC_po,length(pos_vec_test),length(pos_vec_test));
-        
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%% ANALYZE W_PP MATRIX
-        
+
         A_CA1_p_EC_o    = W_PP_po*A_EC_o;          % CA1_p activity through EC_o input for different moments during consolidation
         A_CA1_p_EC_o    = A_CA1_p_EC_o-mean(A_CA1_p_EC_o);  % subtract mean activity
         A_CA1_p_EC_o    = A_CA1_p_EC_o./std(A_CA1_p_EC_o);  % normalize by std activity
-        
+
         P_PP_po         = zeros(1,n_grid_points); % probability of object at position p
         P_PP_quad       = zeros(1,4); % probs in quadrants
         for j = 1:n_grid_points
@@ -122,14 +123,14 @@ for trial_i = 1:Ntrial
         P_PP_quad       = P_PP_quad./repmat(sum(P_PP_quad,2),1,4); % because some probs are outside circle
         P_PP_quad_cycle(:,cycle_i+1,trial_i) = P_PP_quad(end,:);
         P_PP_prob_cycle(:,:,cycle_i+1,trial_i) = reshape(P_PP_po,length(pos_vec_test),length(pos_vec_test));
-        
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%% ANALYZE W_PPS MATRIX
-        
+
         A_SUB_p_EC_o    = W_PPS_po*A_EC_o;        % SUB_p activity through EC_o input for different moments during consolidation
         A_SUB_p_EC_o    = A_SUB_p_EC_o-mean(A_SUB_p_EC_o); % subtract mean activity
         A_SUB_p_EC_o    = A_SUB_p_EC_o./std(A_SUB_p_EC_o); % normalize by std activity
-        
+
         P_PPS_po    = zeros(1,n_grid_points); % probability of object at position p
         P_PPS_quad  = zeros(1,4); % probs in quadrants
         for j = 1:n_grid_points
@@ -142,9 +143,9 @@ for trial_i = 1:Ntrial
         P_PPS_quad(4)   = sum(P_PPS_po(quad_4));
         P_PPS_quad      = P_PPS_quad./repmat(sum(P_PPS_quad,2),1,4); % because some probs are outside circle
         P_PPS_quad_cycle(:,cycle_i+1,trial_i) = P_PPS_quad(end,:);
-        P_PPS_prob_cycle(:,:,cycle_i+1,trial_i) = reshape(P_PPS_po,length(pos_vec_test),length(pos_vec_test));        
+        P_PPS_prob_cycle(:,:,cycle_i+1,trial_i) = reshape(P_PPS_po,length(pos_vec_test),length(pos_vec_test));
     end
-    
+
     figure(1)
     subplot(311)
     plot(t_cycle,P_SC_quad_cycle([1 2 3],:,trial_i),'k',t_cycle,P_SC_quad_cycle(4,:,trial_i),'r');
@@ -194,14 +195,14 @@ for i = 1:length(cycle_range)
     axis square
     axis([-0.5 0.5 -0.5 0.5])
     axis off
-        
+
     subplot(3,length(cycle_range),length(cycle_range)+i)
     imagesc(pos_vec_test,pos_vec_test,P_PP_prob_cycle(:,:,cycle_range(i),example_trial_idx),[0 color_max])
     axis xy
     axis square
     axis([-0.5 0.5 -0.5 0.5])
     axis off
-    
+
     subplot(3,length(cycle_range),2*length(cycle_range)+i)
     imagesc(pos_vec_test,pos_vec_test,P_PPS_prob_cycle(:,:,cycle_range(i),example_trial_idx),[0 color_max])
     axis xy

@@ -1,7 +1,7 @@
 % Memory consolidation - Figure 2
 % Michiel Remme, May 2016
 % run CA1 pyramidal cell model in NEURON from Matlab and plot the results
-% note, for only plotting results from previously run simulation, use 
+% note, for only plotting results from previously run simulation, use
 
 clear all
 
@@ -20,12 +20,12 @@ Ne_sc       = 2500; % number of SC inputs
 Ne_pp       = 500; % number of PP inputs
 
 vth_sc      = -30; % (mV) threshold for stdp learning rule and for recording spike times
-vth_pp      = -30; % (mV) 
+vth_pp      = -30; % (mV)
 
 we_sc_max   = 0.0004; % uS
-we_pp_max 	= 0.00014; % uS
-we_sc_min	= 0;
-we_pp_min	= 0;
+we_pp_max   = 0.00014; % uS
+we_sc_min   = 0;
+we_pp_min   = 0;
 
 del_sc      = 5; % ms
 del_pp      = 0; % ms

@@ -13,12 +13,12 @@ pp_phase = zeros(Ne_pp,1); % phase shift of grid fields of pp fibers
 for k = 1:Ne_pp
     pp_field_size = T_cycle*1000/input_vec_dt/(2*pp_spacing_vec(k));
     pp_phase(k) = randi(floor( 2*pp_field_size )) - pp_field_size; % also have negative phase shifts
-    
+
     gf_vec = zeros(T_cycle*1000/input_vec_dt,1);
     gf_vec_ind = 1:(length(gf_vec)+pp_field_size);
     tmp = mod(ceil((gf_vec_ind-pp_phase(k))/pp_field_size),2);
     gf_vec = tmp(1:length(gf_vec));
-    
+
     pp_sp_tmp = unique(randi(Nind,poissrnd(Rate_pp*tend),1)); % indices van spiketimes als altijd in grid field
     % remove spike times that are outside of grid field
     ind_tmp = mod(pp_sp_tmp,T_cycle*1000/input_vec_dt) + 1; % spike time index within one cycle

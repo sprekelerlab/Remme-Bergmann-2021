@@ -81,7 +81,7 @@ proc place_syns(){
 }
 
 proc stdp_syn_sc() {local i
-    syn_ = new ExpSynSTDP($1)  
+    syn_ = new ExpSynSTDP($1)
     synlist_sc.append(syn_)
     syn_.e      = 0
     syn_.tau    = 3
@@ -93,7 +93,7 @@ proc stdp_syn_sc() {local i
     syn_.wmin   = we_sc_min
     syn_.thresh = vth_sc
 	for i=0, $2-1{
-		vs_ = new VecStim(.5) 
+		vs_ = new VecStim(.5)
         vslist_sc.append(vs_)
 		nc_ = new NetCon(vs_,syn_)
         nclist_sc.append(nc_)
@@ -105,7 +105,7 @@ proc stdp_syn_sc() {local i
 }
 
 proc stdp_syn_pp() {local i
-    syn_ = new ExpSynSTDP($1)  
+    syn_ = new ExpSynSTDP($1)
     synlist_pp.append(syn_)
     syn_.e      = 0
     syn_.tau    = 3

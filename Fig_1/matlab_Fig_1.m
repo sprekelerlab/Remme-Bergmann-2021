@@ -17,34 +17,34 @@ mex -I/usr/local/include -L/usr/local/lib -lgsl -lm integrate_eqns.c
 %% Parameters
 
 nsec        = 300*60;                   % sec - total duration of simulation (in Fig1: 300*60 sec)
-dt          = 0.1; 						% msec
+dt          = 0.1;                      % msec
 
 Ne          = 1000;                     % number of excitatory inputs per pathway
-E_freq      = 10; 						% Hz - mean input rate
+E_freq      = 10;                       % Hz - mean input rate
 
 pp_plastic  = true;                     % if not true SC is plastic
 
 % learning parameters
-delay_sc_pp = 5; 						% ms - delay between SC and PP pathway
-we_max 		= 0.006; 					% dimensionless max weight of inputs (i.e., it's relative to membrane leak conductance)
-lambda_pp   = pp_plastic*0.005*we_max; 	% learning rate PP inputs
-lambda_sc 	= (1-pp_plastic)*0.005*we_max; % learning rate SC inputs
-alpha       = 1.05; 					% ratio of LTD vs LTP
+delay_sc_pp = 5;                        % ms - delay between SC and PP pathway
+we_max      = 0.006;                    % dimensionless max weight of inputs (i.e., it's relative to membrane leak conductance)
+lambda_pp   = pp_plastic*0.005*we_max;  % learning rate PP inputs
+lambda_sc   = (1-pp_plastic)*0.005*we_max; % learning rate SC inputs
+alpha       = 1.05;                     % ratio of LTD vs LTP
 
-save_we_ivl = 30; 						% sec - save weight matrices every X seconds
+save_we_ivl = 30;                       % sec - save weight matrices every X seconds
 
-we_mu       = 0.05; 					% mu-parameter for the mixture of exponentials weight distribution
+we_mu       = 0.05;                     % mu-parameter for the mixture of exponentials weight distribution
 
 % set intial weights of inputs
-if pp_plastic 
-	we_tmp      = bimodal_dist(we_mu, Ne/2); % create vector of random weights with bimodal distribution
+if pp_plastic
+    we_tmp      = bimodal_dist(we_mu, Ne/2); % create vector of random weights with bimodal distribution
     we_sc_init  = [we_max*we_tmp(randperm(Ne/2)); we_max*we_tmp(Ne/2+randperm(Ne/2))];
-	we_tmp      = bimodal_dist(we_mu, Ne/2); 
+    we_tmp      = bimodal_dist(we_mu, Ne/2);
     we_pp_init  = we_max*we_tmp(randperm(Ne));
 else
-	we_tmp      = bimodal_dist(we_mu, Ne/2); 
+    we_tmp      = bimodal_dist(we_mu, Ne/2);
     we_sc_init  = we_max*we_tmp(randperm(Ne));
-	we_tmp      = bimodal_dist(we_mu, Ne/2); 
+    we_tmp      = bimodal_dist(we_mu, Ne/2);
     we_pp_init  = [we_max*we_tmp(randperm(Ne/2)); we_max*we_tmp(Ne/2+randperm(Ne/2))];
 end
 
