@@ -135,4 +135,4 @@ ylabel('Correlation')
 set(gca,'xtick',[0:1:5])
 set(gca,'ytick',[0:0.5:1])
 
-saveas(gcf, '../figure2.png')
+saveas(gcf, '../figure3.png')
