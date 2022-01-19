@@ -1,6 +1,6 @@
 This repository provides the code to reproduce the simulations in the paper
 
-[**Hebbian plasticity in parallel synaptic pathways: A circuit mechanism for systems memory consolidation**](https://www.biorxiv.org/content/10.1101/2020.12.03.408344)
+[**Hebbian plasticity in parallel synaptic pathways: A circuit mechanism for systems memory consolidation**](https://doi.org/10.1371/journal.pcbi.1009681)
 
 *Michiel Remme\*, Urs Bergmann\*, Denis Alevi, Susanne Schreiber, Henning Sprekeler+, Richard Kempter+*
 ____
